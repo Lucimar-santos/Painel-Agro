@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painéis Agro — Frango de Corte e Incubatório</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif;background:#F7F3EE}
+  .hub{height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;background:#2B2118;color:#F7F3EE}
+  .hub b{font-size:14px;letter-spacing:.3px;white-space:nowrap}
+  .sw{display:flex;background:rgba(255,255,255,.1);border-radius:999px;padding:3px}
+  .sw button{border:0;background:transparent;color:#E9DFD3;font:600 13px inherit;font-family:inherit;padding:6px 16px;border-radius:999px;cursor:pointer;transition:background .15s}
+  .sw button[aria-selected="true"]{background:#E8A33D;color:#2B2118}
+  .stage{position:relative;height:calc(100% - 44px)}
+  .stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#F7F3EE;visibility:hidden}
+  .stage iframe.on{visibility:visible}
+  @media(max-width:520px){.hub b{display:none}.sw button{padding:6px 12px}}
+</style>
+</head>
+<body>
+<header class="hub">
+  <b>Painéis Agro</b>
+  <nav class="sw" role="tablist">
+    <button role="tab" data-p="frango">Frango Corte</button>
+    <button role="tab" data-p="incubatorio">Incubatório</button>
+  </nav>
+</header>
+<main class="stage">
+  <iframe id="f-frango" title="Painel Frango de Corte" data-src="frango/index.html"></iframe>
+  <iframe id="f-incubatorio" title="Painel de Incubatório" data-src="incubatorio/index.html"></iframe>
+</main>
+<script>
+(function(){
+  // Cada painel carrega só na primeira vez que é aberto e fica vivo em segundo plano:
+  // a troca depois é instantânea, sem recarregar dados nem perder filtros.
+  var btns=document.querySelectorAll(".sw button");
+  function show(p){
+    if(p!=="frango"&&p!=="incubatorio")p="frango";
+    btns.forEach(function(b){b.setAttribute("aria-selected",b.dataset.p===p)});
+    document.querySelectorAll(".stage iframe").forEach(function(f){
+      var on=f.id==="f-"+p;
+      if(on&&!f.src)f.src=f.dataset.src;
+      f.classList.toggle("on",on);
+    });
+    try{localStorage.setItem("painelAtivo",p)}catch(e){}
+    if(location.hash!=="#"+p)history.replaceState(null,"","#"+p);
+  }
+  btns.forEach(function(b){b.onclick=function(){show(b.dataset.p)}});
+  window.addEventListener("hashchange",function(){show(location.hash.slice(1))});
+  var saved=null;try{saved=localStorage.getItem("painelAtivo")}catch(e){}
+  show(location.hash.slice(1)||saved||"frango");
+})();
+</script>
+</body>
+</html>
