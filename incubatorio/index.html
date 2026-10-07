@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Incubatório</title>
+<meta name="description" content="Painel de incubação, eclosão e viabilidade de pintos, atualizado automaticamente a partir do Google Sheets.">
+<link rel="preconnect" href="https://docs.google.com">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="loadingOverlay"><div class="spin"></div><span id="loadingText">Conectando à planilha do Google Sheets…</span></div>
+
+<div id="sidebar">
+  <div class="brand">
+    <div class="egg">🐣</div>
+    <div>
+      <h1>Painel<br>Incubatório</h1>
+      <p>Filtros &amp; Indicadores</p>
+    </div>
+  </div>
+  <div class="side-divider"></div>
+
+  <div class="filter-group">
+    <h3>Ano <span><span class="mini-btn" data-act="all-ano">todos</span><span class="mini-btn" data-act="clear-ano">limpar</span></span></h3>
+    <div class="chip-row" id="chipAno"></div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Mês <span><span class="mini-btn" data-act="all-mes">todos</span><span class="mini-btn" data-act="clear-mes">limpar</span></span></h3>
+    <div class="chip-row" id="chipMes"></div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Semana / Dia (período) <span><span class="mini-btn" data-act="clear-semana">limpar</span></span></h3>
+    <div class="date-range">
+      <div>
+        <label>De</label>
+        <input type="date" id="semanaDe">
+      </div>
+      <div>
+        <label>Até</label>
+        <input type="date" id="semanaAte">
+      </div>
+    </div>
+    <div style="margin-top:5px;font-size:10px;color:#5c4600;font-weight:600;line-height:1.35;">Selecione o mesmo dia em "De" e "Até" para filtrar um único dia</div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Linhagem <span><span class="mini-btn" data-act="all-linhg">todas</span><span class="mini-btn" data-act="clear-linhg">limpar</span></span></h3>
+    <div class="chip-row" id="chipLinhg"></div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Tipo de Ovo <span><span class="mini-btn" data-act="all-tipo">todos</span><span class="mini-btn" data-act="clear-tipo">limpar</span></span></h3>
+    <div class="chip-row" id="chipTipo"></div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Fazenda <span><span class="mini-btn" data-act="all-faz">todas</span><span class="mini-btn" data-act="clear-faz">limpar</span></span></h3>
+    <div class="dropdown" id="fazDropdown">
+      <button type="button" class="dropdown-toggle" id="fazDropdownBtn">Todas as fazendas</button>
+      <div class="dropdown-panel" id="fazPanel">
+        <input type="text" class="faz-search" id="fazSearch" placeholder="Buscar fazenda...">
+        <div class="dropdown-list" id="chipFaz"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Lote <span><span class="mini-btn" data-act="all-lote">todos</span><span class="mini-btn" data-act="clear-lote">limpar</span></span></h3>
+    <div class="dropdown" id="loteDropdown">
+      <button type="button" class="dropdown-toggle" id="loteDropdownBtn">Todos os lotes</button>
+      <div class="dropdown-panel" id="lotePanel">
+        <input type="text" class="faz-search" id="loteSearch" placeholder="Buscar lote (ex: 135)...">
+        <div class="dropdown-list" id="chipLote"></div>
+      </div>
+    </div>
+  </div>
+
+  <button id="resetBtn">↺ Resetar todos os filtros</button>
+
+  <div id="recordCount">
+    <b id="recCountNum">0</b>
+    registros de incubação no filtro atual
+  </div>
+</div>
+
+<div id="main">
+  <div class="topbar">
+    <div>
+      <h2>Painel Incubatório</h2>
+      <div class="sub">Desempenho de incubação, eclosão e viabilidade de pintos</div>
+    </div>
+    <div class="topbar-right">
+      <span id="syncStatus" class="sync-pill busy" title="Clique para sincronizar agora">sincronizando…</span>
+      <div class="period-badge">Período nos dados: <b id="periodBadge">—</b></div>
+    </div>
+  </div>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="section-title">Visão geral por linhagem</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="chart-head"><h4>Ovos incubados por linhagem</h4></div>
+      <div class="chart-note">Participação no total incubado no período filtrado</div>
+      <div class="chart-wrap h-300"><canvas id="chartDonutLinhg"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><h4>Desempenho por linhagem</h4></div>
+      <div class="chart-note">%Vendáveis, %Eclosão (barras) e IEV médio (linha)</div>
+      <div class="chart-wrap h-300"><canvas id="chartLinhgPerf"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Tipo de ovo &amp; descarte</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="chart-head"><h4>Desempenho por tipo de ovo</h4></div>
+      <div class="chart-note">Idade da matriz e %Vendáveis (barras) · % participação no total incubado (linha)</div>
+      <div class="chart-wrap h-300"><canvas id="chartTipoOvo"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><h4>Descarte de pintos</h4></div>
+      <div class="chart-note">Período filtrado vs. média histórica da base completa</div>
+      <div class="chart-wrap h-300"><canvas id="chartDescarte"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Evolução semanal</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="chart-head"><h4>%Vendáveis &amp; IEV — semanal</h4></div>
+      <div class="chart-note">IEV médio (barras) e %Vendáveis (linha vermelha), por semana de nascimento</div>
+      <div class="chart-wrap h-300"><canvas id="chartWeeklyVend"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><h4>Descarte — evolução semanal</h4></div>
+      <div class="chart-note">%Contaminados, %Eliminados e %Nascidos mortos por semana</div>
+      <div class="chart-wrap h-300"><canvas id="chartWeeklyDescarte"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Comparativo anual</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="chart-head">
+        <h4>Comparativo mensal entre anos</h4>
+        <select class="metric-select" id="bienalMetric">
+          <option value="pctVend">%Vendáveis</option>
+          <option value="pctEcl">%Eclosão</option>
+          <option value="iev">IEV médio</option>
+          <option value="pctElim">%Eliminados</option>
+        </select>
+      </div>
+      <div class="chart-note">Uma linha por ano, mês a mês (equivalente ao comparativo "bienal" do painel original)</div>
+      <div class="chart-wrap h-300"><canvas id="chartBienal"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><h4>Mapa de calor — %Vendáveis por Ano × Mês</h4></div>
+      <div class="chart-note">Quanto mais verde, melhor o aproveitamento; quanto mais vermelho, pior</div>
+      <div id="heatmapWrap"><table class="heatmap" id="heatmapTable"></table></div>
+    </div>
+  </div>
+
+  <div class="card" id="bienalFixedCard">
+    <div class="chart-head">
+      <h4>Bienal - % Vendáveis</h4>
+    </div>
+    <div class="chart-note">Comparação mês a mês entre os anos selecionados (IEV e %Vendáveis) · filtro próprio, independente dos filtros da barra lateral</div>
+    <div class="bienal-filter-row">
+      <span class="bienal-filter-label">Anos:</span>
+      <div class="chip-row" id="chipBienalAno"></div>
+      <span class="mini-btn" data-act="all-bienal-ano">todos</span>
+      <span class="mini-btn" data-act="clear-bienal-ano">limpar</span>
+    </div>
+    <div class="chart-wrap h-340"><canvas id="chartBienalFixed"></canvas></div>
+    <div id="bienalTableWrap"><table class="mixtable" id="bienalTable"></table></div>
+  </div>
+
+  <div class="section-title">Rankings de lotes</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="chart-head"><h4>Top 15 lotes por IEV</h4></div>
+      <div class="chart-note">Fazenda-Lote-Linhagem, média ponderada no período filtrado</div>
+      <div class="chart-wrap h-380"><canvas id="chartRankIEV"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><h4>Top 15 lotes por %Vendáveis</h4></div>
+      <div class="chart-note">Rótulo mostra a idade média da matriz (semanas)</div>
+      <div class="chart-wrap h-380"><canvas id="chartRankVend"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Análises adicionais</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="chart-head"><h4>Ranking de fazendas por %Vendáveis</h4></div>
+      <div class="chart-note">Média ponderada pelo volume incubado no período filtrado</div>
+      <div class="chart-wrap h-380"><canvas id="chartRankFazenda"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="chart-head"><h4>Idade da matriz × %Vendáveis</h4></div>
+      <div class="chart-note">Cada bolha é um lote; tamanho = volume de ovos incubados; cor = linhagem</div>
+      <div class="chart-wrap h-380"><canvas id="chartScatter"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Mix de tipo de ovo por ano</div>
+  <div class="card">
+    <div class="chart-head"><h4>Composição percentual dos tipos de ovo incubados, por ano</h4></div>
+    <div class="chart-note">Mostra a evolução do mix de qualidade de ovos ao longo do tempo</div>
+    <div class="chart-wrap h-340"><canvas id="chartMixAno"></canvas></div>
+  </div>
+
+  <footer>
+    Painel gerado a partir da base "Dados_Incubatorio" · <span id="footN"></span> registros carregados · dados lidos diretamente do Google Sheets
+  </footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

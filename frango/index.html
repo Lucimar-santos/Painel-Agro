@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Zootécnico &middot; NUTRIZA / Friato Agroindustrial</title>
+<meta name="description" content="Painel de resultados zootécnicos e incubatório, atualizado automaticamente a partir do Google Sheets.">
+<link rel="preconnect" href="https://docs.google.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+      <!-- Janela de senha que oculta o texto digitado -->
+    <div id="janelaSenha" class="modal-privado">
+        <div class="caixa-prompt">
+            <h3>Área Restrita</h3>
+            <p>Digite a senha para acessar a página:</p>
+            <!-- O segredo está no type="password" abaixo -->
+            <input type="password" id="campoSenha" placeholder="Senha">
+            <br>
+            <button onclick="validarSenha()">Entrar</button>
+        </div>
+    </div>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-spinner"></div>
+  <div style="font-family:'Manrope',sans-serif;font-weight:700;color:var(--red);font-size:14px;">Carregando painel zootécnico&hellip;</div>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M2 15C5 15 5 11 8 11C11 11 11 15.5 14 15.5C17 15.5 17 12 20 12" stroke="#F5B93C" stroke-width="2.2" stroke-linecap="round" opacity="0.6"/>
+        <path d="M2 12C5 12 5 8 8 8C11 8 11 12.5 14 12.5C17 12.5 17 9 20 9" stroke="#F5B93C" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-name">Friato <span style="color:var(--gold-dark);font-weight:700;">Agroindustrial</span></div>
+      <div class="brand-sub">GERÊNCIA AGROPECUÁRIA &middot; NUTRIZA</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="topbar-tag" id="topbarUpdated">Base Agrosys</div>
+    <div class="sync-pill" id="syncStatus" title="Clique para sincronizar com a planilha agora">conectando à planilha…</div>
+    <button class="topbar-refresh-btn" id="topbarRefreshBtn" title="Atualizar dados do painel">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <span>Atualizar dados</span>
+    </button>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge"><span class="dot"></span> GERÊNCIA AGROPECUÁRIA &middot; ANÁLISE ZOOTÉCNICA</div>
+    <h1>Painel de Resultados <span class="accent">Zootécnicos</span></h1>
+    <p>Histórico 2020&ndash;2026 &middot; conversão alimentar, IEP, peso, mortalidade e densidade por técnico, região, integrado, aviário e linhagem &middot; com projeções 2027&ndash;2030 e simulador de economia por CA.</p>
+    <div class="kpi-row" id="kpiRow"><!-- injected --></div>
+  </div>
+  <svg class="hero-wave" viewBox="0 0 1400 60" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,38 C180,10 340,52 560,34 C780,16 900,50 1120,30 C1260,18 1340,26 1400,22 L1400,60 L0,60 Z" fill="#F5B93C" opacity="0.55"/>
+    <path d="M0,46 C160,24 320,58 540,42 C760,26 920,56 1140,40 C1270,30 1330,36 1400,34 L1400,60 L0,60 Z" fill="#F5B93C"/>
+  </svg>
+</div>
+
+<div class="filterbar" id="filterBar"><!-- injected --></div>
+<div class="filter-summary" id="filterSummary"></div>
+
+<div class="tabnav" id="tabNav"><!-- injected --></div>
+
+<div class="content" id="tabContent">
+
+<!-- ============ TAB: OVERVIEW ============ -->
+<div class="tabpanel active" data-tab="overview">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Evolução dos indicadores-chave (2020&ndash;2026)</div>
+    <div class="section-note">Médias por lote fechado, no recorte de filtros ativo</div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-title">Conversão Alimentar (CA e CAc) por ano</div><div class="card-sub">Quanto menor, melhor</div>
+      <div class="chart-wrap"><canvas id="ovCaChart"></canvas></div></div>
+    <div class="card"><div class="card-title">IEP e IEP corrigido por ano</div><div class="card-sub">Quanto maior, melhor</div>
+      <div class="chart-wrap"><canvas id="ovIepChart"></canvas></div></div>
+  </div>
+  <div class="grid grid-2" style="margin-top:16px;">
+    <div class="card"><div class="card-title">GMD e Peso Médio por ano</div><div class="card-sub">Ganho médio diário (g) e peso médio final (kg)</div>
+      <div class="chart-wrap"><canvas id="ovGmdChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Mortalidade por ano</div><div class="card-sub">% sobre aves alojadas</div>
+      <div class="chart-wrap"><canvas id="ovMortChart"></canvas></div></div>
+  </div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Resumo anual</div></div>
+  <div class="table-scroll"><table class="dtable" id="ovYearTable"></table></div>
+</div>
+
+<!-- ============ TAB: ANUAL ============ -->
+<div class="tabpanel" data-tab="anual">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Histórico anual &middot; todos os indicadores</div>
+    <div class="section-note">2020&ndash;2026 (2026 parcial, jan&ndash;jun)</div>
+  </div>
+  <div class="grid grid-3" id="anualGrid"><!-- injected mini charts --></div>
+</div>
+
+<!-- ============ TAB: MENSAL ============ -->
+<div class="tabpanel" data-tab="mensal">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Tendência mensal (Ano &times; Mês)</div>
+    <div class="section-note">Selecione o indicador para a série mensal e o mapa de calor</div>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Indicador</span>
+    <select class="control-select" id="moMetricSelect"></select>
+  </div>
+  <div class="card"><div class="card-title">Série mensal por ano</div><div class="card-sub" id="moChartSub"></div>
+    <div class="chart-wrap tall"><canvas id="moLineChart"></canvas></div></div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Mapa de calor &middot; Ano &times; Mês</div></div>
+  <div class="table-scroll"><table class="dtable" id="moHeatTable"></table></div>
+</div>
+
+<!-- ============ TAB: TECNICOS ============ -->
+<div class="tabpanel" data-tab="tecnicos">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Desempenho por técnico</div>
+    <div class="section-note" id="tecCount"></div>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Ranquear por</span>
+    <select class="control-select" id="tecMetricSelect"></select>
+  </div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-title">Ranking de técnicos</div><div class="card-sub">Ordenado do melhor para o pior resultado</div>
+      <div id="tecRankBars" style="max-height:520px;overflow-y:auto;"></div></div>
+    <div class="card"><div class="card-title">CA &times; IEP por técnico</div><div class="card-sub">Tamanho da bolha = volume de aves abatidas</div>
+      <div class="chart-wrap tall"><canvas id="tecScatterChart"></canvas></div></div>
+  </div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Tabela comparativa</div></div>
+  <div class="table-scroll"><table class="dtable" id="tecTable"></table></div>
+</div>
+
+<!-- ============ TAB: REGIOES ============ -->
+<div class="tabpanel" data-tab="regioes">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Desempenho por região integrada</div>
+    <div class="section-note" id="regCount"></div>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Ranquear por</span>
+    <select class="control-select" id="regMetricSelect"></select>
+  </div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-title">Ranking de regiões</div><div class="card-sub">Ordenado do melhor para o pior resultado</div>
+      <div id="regRankBars" style="max-height:520px;overflow-y:auto;"></div></div>
+    <div class="card"><div class="card-title">CA &times; IEP por região</div><div class="card-sub">Tamanho da bolha = volume de aves abatidas</div>
+      <div class="chart-wrap tall"><canvas id="regScatterChart"></canvas></div></div>
+  </div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Tabela comparativa</div></div>
+  <div class="table-scroll"><table class="dtable" id="regTable"></table></div>
+</div>
+
+<!-- ============ TAB: TOMAZINI ============ -->
+<div class="tabpanel" data-tab="tomazini">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Integrados Tomazini &times; demais integrados</div>
+    <div class="section-note">Agrupamento de granjas cujo proprietário pertence à família Tomazini</div>
+  </div>
+  <div class="grid grid-4" id="tomStatCards"></div>
+  <div class="grid grid-2" style="margin-top:16px;">
+    <div class="card"><div class="card-title">Evolução do CA por ano</div><div class="card-sub">Tomazini vs. demais integrados</div>
+      <div class="chart-wrap tall"><canvas id="tomTrendChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Evolução do IEP por ano</div><div class="card-sub">Tomazini vs. demais integrados</div>
+      <div class="chart-wrap tall"><canvas id="tomTrendChart2"></canvas></div></div>
+  </div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Comparativo de indicadores</div>
+    <div class="section-note">Tomazini vs. demais integrados &middot; um gráfico por indicador</div></div>
+  <div class="grid grid-3" id="tomCompareGrid"></div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Ranking de proprietários Tomazini</div></div>
+  <div class="table-scroll"><table class="dtable" id="tomNucleoTable"></table></div>
+</div>
+
+<!-- ============ TAB: AVIARIO ============ -->
+<div class="tabpanel" data-tab="aviario">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Desempenho por tipo de aviário</div>
+    <div class="section-note">Dark House &middot; Blue House &middot; Semi Dark &middot; Convencional</div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-title">Perfil comparativo (normalizado)</div><div class="card-sub">Cada eixo normalizado de 0 a 100 no melhor resultado do grupo</div>
+      <div class="chart-wrap tall"><canvas id="avRadarChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Evolução do CA por tipo de aviário</div>
+      <div class="chart-wrap tall"><canvas id="avTrendChart"></canvas></div></div>
+  </div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Indicadores por tipo de aviário</div>
+    <div class="section-note">Um gráfico por indicador, para respeitar as escalas de cada um</div></div>
+  <div class="grid grid-3" id="avBarGrid"></div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Tabela comparativa</div></div>
+  <div class="table-scroll"><table class="dtable" id="avTable"></table></div>
+</div>
+
+<!-- ============ TAB: LINHAGEM ============ -->
+<div class="tabpanel" data-tab="linhagem">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Desempenho por linhagem</div>
+    <div class="section-note">Rótulos de valor exibidos diretamente nos gráficos</div>
+  </div>
+  <div class="grid grid-4" id="lnStatCards"></div>
+
+  <div class="control-row" style="margin-top:6px;">
+    <span class="control-label">Ranquear por</span>
+    <select class="control-select" id="lnMetricSelect"></select>
+  </div>
+  <div class="card"><div class="card-title">Ranking de linhagens</div>
+    <div class="card-sub">Considera linhagens com pelo menos 15 lotes no recorte atual</div>
+    <div id="lnRankBars"></div></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Indicadores por linhagem &middot; top linhagens por volume</div>
+    <div class="section-note">Um gráfico por indicador, com rótulos de valor em cada barra</div></div>
+  <div class="grid grid-3" id="lnBarGrid"></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Evolução por ano &middot; top linhagens</div></div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-title">CA por ano</div>
+      <div class="chart-wrap tall"><canvas id="lnTrendCaChart"></canvas></div></div>
+    <div class="card"><div class="card-title">IEP por ano</div>
+      <div class="chart-wrap tall"><canvas id="lnTrendIepChart"></canvas></div></div>
+  </div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Linhagem &times; Tipo de Aviário</div>
+    <div class="section-note">CA médio &middot; top linhagens por volume</div></div>
+  <div class="card"><div class="chart-wrap tall"><canvas id="lnAviarioChart"></canvas></div></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Tabela completa</div></div>
+  <div class="table-scroll"><table class="dtable" id="lnTable"></table></div>
+</div>
+
+<!-- ============ TAB: PIVOT ============ -->
+<div class="tabpanel" data-tab="pivot">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Tabela dinâmica</div>
+    <div class="section-note">Monte seu próprio cruzamento &middot; respeita os filtros segmentados ativos</div>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Linhas</span>
+    <select class="control-select" id="pvRowSelect"></select>
+    <span class="control-label">Colunas</span>
+    <select class="control-select" id="pvColSelect"></select>
+    <span class="control-label">Indicador</span>
+    <select class="control-select" id="pvMetricSelect"></select>
+    <span class="control-label">Agregação</span>
+    <select class="control-select" id="pvAggSelect">
+      <option value="auto">Automática</option>
+      <option value="mean">Média simples</option>
+      <option value="wavg">Média ponderada (aves)</option>
+      <option value="sum">Soma</option>
+    </select>
+    <button class="btn ghost" id="pvExportBtn">&#8595; Exportar CSV</button>
+  </div>
+  <div class="table-scroll" style="max-height:600px;"><table class="dtable" id="pivotTable"></table></div>
+</div>
+
+<!-- ============ TAB: CLIMA ============ -->
+<div class="tabpanel" data-tab="clima">
+  <div class="note-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <div><b>Sobre esta análise:</b> a base Agrosys não possui coluna de temperatura, umidade ou ITU (Índice de Temperatura e Umidade) por granja/dia. Esta aba usa o <b>mês do abate</b> como proxy sazonal &mdash; no Cerrado goiano, maio&ndash;setembro é a estação seca (amplitude térmica maior, noites frias e tardes quentes) e outubro&ndash;abril é a estação chuvosa (mais quente e úmida). Se a equipe puder fornecer dados reais de estação climática por núcleo/período, a correlação pode ser refinada com temperatura e umidade efetivas em vez do calendário.</div>
+  </div>
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Padrão sazonal (mês do abate, todos os anos)</div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-title">CA e Mortalidade por mês</div><div class="card-sub">Média de todos os lotes fechados no mês, 2020&ndash;2026</div>
+      <div class="chart-wrap tall"><canvas id="climMonthChart"></canvas></div></div>
+    <div class="card"><div class="card-title">GMD e Peso Médio por mês</div>
+      <div class="chart-wrap tall"><canvas id="climMonthChart2"></canvas></div></div>
+  </div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Sensibilidade sazonal por tipo de aviário</div>
+    <div class="section-note">Casas climatizadas (Dark/Blue/Semi Dark) devem variar menos entre estações do que o Convencional</div></div>
+  <div class="card"><div class="card-title">CA médio por mês &middot; Convencional vs. climatizados</div>
+    <div class="chart-wrap tall"><canvas id="climAviarioChart"></canvas></div></div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Tabela mensal</div></div>
+  <div class="table-scroll"><table class="dtable" id="climTable"></table></div>
+</div>
+
+<!-- ============ TAB: PROJECOES ============ -->
+<div class="tabpanel" data-tab="projecoes">
+  <div class="note-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <div><b>Projeção estatística</b> por regressão linear sobre os anos fechados 2020&ndash;2025 (2026 fica de fora do ajuste por estar parcial, mas aparece no gráfico como referência). Não considera mudanças futuras de genética, clima, preço de insumos ou manejo &mdash; use como referência direcional de tendência, não como meta contratual.</div>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Indicador</span>
+    <select class="control-select" id="projMetricSelect"></select>
+  </div>
+  <div class="card"><div class="card-title">Histórico e projeção 2027&ndash;2030</div><div class="card-sub" id="projChartSub"></div>
+    <div class="chart-wrap tall"><canvas id="projChart"></canvas></div></div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Projeção de todos os indicadores</div></div>
+  <div class="table-scroll"><table class="dtable" id="projTable"></table></div>
+</div>
+
+<!-- ============ TAB: SIMULADOR ============ -->
+<div class="tabpanel" data-tab="simulador">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Simulador de economia de ração por CA</div>
+    <div class="section-note">Ajuste os parâmetros &middot; valores iniciais calculados a partir do último ano fechado</div>
+  </div>
+  <div class="grid grid-2">
+    <div class="sim-input-card">
+      <div class="sim-field">
+        <label>Produção anual de peso vivo (ton) <span class="val" id="simPtVal"></span></label>
+        <input type="range" id="simPtRange" min="10000" max="600000" step="1000" value="300000">
+        <input type="number" id="simPtNum" style="margin-top:8px;" value="300000">
+      </div>
+      <div class="sim-field">
+        <label>CA atual <span class="val" id="simCaAtualVal"></span></label>
+        <input type="range" id="simCaAtualRange" min="1.20" max="1.90" step="0.001" value="1.550">
+      </div>
+      <div class="sim-field">
+        <label>CA meta (simulado) <span class="val" id="simCaMetaVal"></span></label>
+        <input type="range" id="simCaMetaRange" min="1.20" max="1.90" step="0.001" value="1.530">
+      </div>
+      <div class="sim-field">
+        <label>Preço da ração (R$/ton) <span class="val" id="simPrecoVal"></span></label>
+        <input type="range" id="simPrecoRange" min="900" max="3000" step="10" value="1800">
+        <input type="number" id="simPrecoNum" style="margin-top:8px;" value="1800">
+      </div>
+      <div class="section-note">Fórmula: economia (ton) = produção (ton) &times; (CA atual &minus; CA meta). Economia (R$) = economia (ton) &times; preço da ração (R$/ton).</div>
+    </div>
+    <div class="sim-result">
+      <div class="sim-result-label">Economia estimada por ano</div>
+      <div class="sim-result-big" id="simResultReais">R$ 0</div>
+      <div class="sim-sub-results">
+        <div><div class="sim-sub-val" id="simResultTon">0 t</div><div class="sim-sub-label">Ração economizada/ano</div></div>
+        <div><div class="sim-sub-val" id="simResultMes">R$ 0</div><div class="sim-sub-label">Economia por mês</div></div>
+        <div><div class="sim-sub-val" id="simResultPct">0%</div><div class="sim-sub-label">Redução no consumo</div></div>
+        <div><div class="sim-sub-val" id="simResultRacaoNova">0 t</div><div class="sim-sub-label">Ração necessária/ano (meta)</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;"><div class="card-title">Ração consumida &middot; cenário atual vs. simulado</div>
+    <div class="chart-wrap"><canvas id="simChart"></canvas></div></div>
+</div>
+
+<!-- ============ TAB: IMPORTAR ============ -->
+<div class="tabpanel" data-tab="importar">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Importar arquivo (simulação nesta sessão)</div>
+    <div class="section-note">O painel já lê a planilha do Google Sheets automaticamente. Use esta aba apenas para testar um extrato avulso</div>
+  </div>
+
+  <div class="note-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <div><b>Importante:</b> a importação vale apenas para esta sessão do navegador &mdash; ao recarregar, o painel volta a mostrar os dados da planilha do Google Sheets. Para uma atualização permanente, basta lançar os registros na planilha: o painel sincroniza sozinho. Excel é o formato mais confiável (mesma estrutura do Agrosys); Word, PDF e bloco de notas funcionam melhor quando têm uma tabela clara com cabeçalhos como Técnico, Região, CA, IEP etc.</div>
+  </div>
+
+  <div id="importSessionBanner"></div>
+
+  <input type="file" id="importFileInput" class="upload-input" accept=".xlsx,.xls,.csv,.txt,.docx,.pdf">
+  <div class="upload-zone" id="importDropZone">
+    <div class="upload-zone-icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </div>
+    <div class="upload-zone-title">Arraste um arquivo aqui ou clique para escolher</div>
+    <div class="upload-zone-sub">O arquivo é lido no seu navegador &mdash; nada é enviado para nenhum servidor. Depois de analisado, você confere uma prévia antes de aplicar qualquer mudança.</div>
+    <div class="upload-format-row">
+      <span class="upload-format-badge xlsx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8l8 8M16 8l-8 8"/></svg>Excel (.xlsx/.xls)</span>
+      <span class="upload-format-badge docx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Word (.docx)</span>
+      <span class="upload-format-badge pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF (.pdf)</span>
+      <span class="upload-format-badge txt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Bloco de notas (.txt/.csv)</span>
+    </div>
+  </div>
+
+  <div id="importStatusArea"></div>
+  <div id="importPreviewArea"></div>
+</div>
+
+<!-- ============ TAB: AVALIACAO 2026 ============ -->
+<div class="tabpanel" data-tab="aval2026">
+  <div class="note-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <div><b>Esta aba considera apenas lotes abatidos em 2026</b> (jan&ndash;jun/2026, base atual), independente do filtro de Ano no topo &mdash; os demais filtros segmentados (técnico, região, aviário, linhagem, Tomazini) continuam valendo.</div>
+  </div>
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Resumo 2026</div>
+    <div class="section-note" id="avalPeriodNote"></div></div>
+  <div class="grid grid-3" id="avalKpiRow" style="margin-bottom:8px;"></div>
+
+  <div class="section-head" style="margin-top:26px;"><div class="section-title"><span class="bar"></span>Destaques 2026</div></div>
+  <div class="grid grid-4" id="avalHighlightCards"></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Comparativo por dimensão</div>
+    <div class="section-note">Técnico, região, linhagem e família Tomazini no mesmo indicador</div></div>
+  <div class="control-row">
+    <span class="control-label">Indicador</span>
+    <select class="control-select" id="avalMetricSelect"></select>
+  </div>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-title">Por técnico</div><div id="avalRankTecnico" style="max-height:320px;overflow-y:auto;"></div></div>
+    <div class="card"><div class="card-title">Por região</div><div id="avalRankRegiao" style="max-height:320px;overflow-y:auto;"></div></div>
+  </div>
+  <div class="grid grid-2" style="margin-top:16px;">
+    <div class="card"><div class="card-title">Por linhagem</div><div id="avalRankLinhagem" style="max-height:320px;overflow-y:auto;"></div></div>
+    <div class="card"><div class="card-title">Por família Tomazini</div><div class="card-sub">Giuliano, Tarcísio, Fausto, Francisco, JLA e outros &middot; exclui demais integrados</div><div id="avalRankFamilia" style="max-height:320px;overflow-y:auto;"></div></div>
+  </div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Ranking de sistemas (tipo de aviário)</div>
+    <div class="section-note">CA, IEP e mortalidade &middot; 2026</div></div>
+  <div class="grid grid-3" id="avalSistemaGrid"></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Ranking mensal &middot; melhores e piores</div></div>
+  <div class="control-row">
+    <span class="control-label">Mês (2026)</span>
+    <select class="control-select" id="avalMonthSelect"></select>
+    <span class="control-label">Indicador</span>
+    <select class="control-select" id="avalMonthMetricSelect"></select>
+  </div>
+  <div class="grid grid-3" id="avalMonthlyRankGrid"></div>
+</div>
+
+<!-- ============ TAB: ECONOMICO ============ -->
+<div class="tabpanel" data-tab="economico">
+  <div class="note-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <div><b>Sobre os valores:</b> Resultado Líquido é o valor pago ao integrado por lote (base do Agrosys). Pagamento por cabeça e por kg são calculados como soma do resultado líquido dividida pela soma de aves/kg produzidos no recorte (não é média simples por lote). O campo Pagamento de Transporte só está preenchido em parte da base (&asymp;57% dos lotes) &mdash; totais envolvendo transporte podem subestimar o real. Use a <b>Tabela Dinâmica</b> para cruzar qualquer um desses indicadores com técnico, região, integrado, ano ou mês.</div>
+  </div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Resumo econômico</div>
+    <div class="section-note">Recorte atual de filtros</div></div>
+  <div class="grid grid-4" id="econKpiCards"></div>
+
+  <div class="section-head" style="margin-top:26px;"><div class="section-title"><span class="bar"></span>Evolução mensal (Ano &times; Mês)</div></div>
+  <div class="control-row">
+    <span class="control-label">Indicador</span>
+    <select class="control-select" id="econMetricSelect"></select>
+  </div>
+  <div class="card"><div class="card-title">Série mensal por ano</div>
+    <div class="chart-wrap tall"><canvas id="econMonthChart"></canvas></div></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Evolução anual dos componentes de pagamento</div></div>
+  <div class="card"><div class="card-title">Resultado líquido, apanha e transporte por ano</div>
+    <div class="chart-wrap tall"><canvas id="econYearChart"></canvas></div></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Pagamento por integrado</div>
+    <div class="section-note">Top 20 por resultado líquido total no recorte atual</div></div>
+  <div class="table-scroll"><table class="dtable" id="econIntegradoTable"></table></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Apanha e transporte por região</div></div>
+  <div class="card"><div class="chart-wrap tall"><canvas id="econRegiaoChart"></canvas></div></div>
+</div>
+
+<!-- ============ TAB: RANKING ============ -->
+<div class="tabpanel" data-tab="ranking">
+  <div class="section-head">
+    <div class="section-title"><span class="bar"></span>Ranking de lotes por indicador</div>
+    <div class="section-note">Filtre por período de abate e por valor-limite para destacar os lotes dentro da meta &middot; rótulo = Granja</div>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Período (Data Abate)</span>
+    <input type="date" class="control-input" id="rkDataIni">
+    <span class="control-label" style="text-transform:none;font-weight:600;">até</span>
+    <input type="date" class="control-input" id="rkDataFim">
+    <button class="btn" id="rkApplyBtn" type="button">Aplicar filtro</button>
+  </div>
+
+  <div class="grid grid-3">
+    <div class="card">
+      <div class="card-title">CA &middot; do menor para o maior</div>
+      <div class="card-sub" id="rkCaCount"></div>
+      <div class="control-row" style="margin:12px 0 6px;">
+        <span class="control-label">CA &le;</span>
+        <input type="number" class="control-input" id="rkCaLimite" step="0.001" min="0" style="width:90px;">
+      </div>
+      <div id="rkCaBars" style="max-height:480px;overflow-y:auto;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">IEP &middot; do maior para o menor</div>
+      <div class="card-sub" id="rkIepCount"></div>
+      <div class="control-row" style="margin:12px 0 6px;">
+        <span class="control-label">IEP &ge;</span>
+        <input type="number" class="control-input" id="rkIepLimite" step="0.1" min="0" style="width:90px;">
+      </div>
+      <div id="rkIepBars" style="max-height:480px;overflow-y:auto;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">GMD &middot; do maior para o menor</div>
+      <div class="card-sub" id="rkGmdCount"></div>
+      <div class="control-row" style="margin:12px 0 6px;">
+        <span class="control-label">GMD &ge;</span>
+        <input type="number" class="control-input" id="rkGmdLimite" step="0.01" min="0" style="width:90px;">
+      </div>
+      <div id="rkGmdBars" style="max-height:480px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TAB: ABATE DIARIO MENSAL ============ -->
+<div class="tabpanel" data-tab="diarioMensal">
+  <div class="note-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <div id="dmBannerText"><b>Abate diário do mês, no formato do Agrosys.</b> Escolha o ano e o mês: cada linha da tabela é uma data, com todos os parâmetros zootécnicos e econômicos do dia. Mais abaixo, uma comparação de cada dia do mês entre os diferentes anos da base. Respeita os filtros segmentados do topo.</div>
+  </div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Abate diário &middot; ano e mês selecionados</div></div>
+  <div class="control-row">
+    <span class="control-label">Ano</span>
+    <select class="control-select" id="dmLedgerAnoSelect"></select>
+    <span class="control-label">Mês</span>
+    <select class="control-select" id="dmLedgerMesSelect"></select>
+  </div>
+  <div class="grid grid-4" id="dmLedgerStatCards"></div>
+
+  <div class="card" style="margin-top:16px;"><div class="card-title">CA e IEP por dia</div><div class="card-sub" id="dmLedgerChartSub"></div>
+    <div class="chart-wrap tall"><canvas id="dmLedgerChart"></canvas></div></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Tabela dia a dia</div>
+    <div class="section-note">Cada linha é uma data &mdash; formato de conferência, como no Agrosys &middot; clique no cabeçalho para ordenar</div></div>
+  <div class="table-scroll" style="max-height:560px;"><table class="dtable" id="dmLedgerTable"></table></div>
+
+  <div class="section-head" style="margin-top:32px;"><div class="section-title"><span class="bar"></span>Comparativo entre anos &middot; dia do mês</div>
+    <div class="section-note">Escolha um mês (ex.: Julho) e veja como cada dia 1&ndash;31 se comportou em cada ano da base</div></div>
+  <div class="control-row">
+    <span class="control-label">Mês</span>
+    <select class="control-select" id="dmMesSelect"></select>
+    <span class="control-label">Indicador</span>
+    <select class="control-select" id="dmMetricSelect"></select>
+  </div>
+  <div class="grid grid-4" id="dmStatCards"></div>
+
+  <div class="section-head" style="margin-top:20px;"><div class="section-title"><span class="bar"></span>Série diária por ano</div></div>
+  <div class="card"><div class="card-title">Um dia por ponto, uma linha por ano</div><div class="card-sub" id="dmChartSub"></div>
+    <div class="chart-wrap tall"><canvas id="dmLineChart"></canvas></div></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Mapa de calor &middot; Ano &times; Dia</div></div>
+  <div class="table-scroll"><table class="dtable" id="dmHeatTable"></table></div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Resumo por dia (todos os anos)</div>
+    <div class="section-note">Clique no cabeçalho para ordenar</div></div>
+  <div class="table-scroll"><table class="dtable" id="dmDayTable"></table></div>
+</div>
+
+<!-- ============ TAB: ABATE DIARIO ============ -->
+<div class="tabpanel" data-tab="diario">
+  <div class="note-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+    <div id="diBannerText"><b>Consulta operacional de um dia específico.</b> Escolha ano, mês e dia para ver os lotes/granjas abatidos naquela data, com filtros próprios de tipo de aviário, integrado e galpão. Os filtros segmentados do topo (técnico, região, linhagem etc.) também continuam valendo.</div>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Ano</span>
+    <select class="control-select" id="diAnoSelect"></select>
+    <span class="control-label">Mês</span>
+    <select class="control-select" id="diMesSelect"></select>
+    <span class="control-label">Dia</span>
+    <select class="control-select" id="diDiaSelect"></select>
+  </div>
+  <div class="control-row">
+    <span class="control-label">Tipo de Aviário</span>
+    <select class="control-select" id="diAviarioSelect"></select>
+    <span class="control-label">Integrado</span>
+    <select class="control-select" id="diIntegradoSelect"></select>
+    <span class="control-label">Galpão</span>
+    <select class="control-select" id="diGalpaoSelect"></select>
+  </div>
+
+  <div class="grid grid-4" id="diStatCards"></div>
+
+  <div class="grid grid-2" style="margin-top:16px;">
+    <div class="card"><div class="card-title">CA por galpão no dia</div><div class="card-sub">Cada barra é um lote abatido na data selecionada</div>
+      <div class="chart-wrap tall"><canvas id="diBarChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Distribuição por tipo de aviário</div>
+      <div class="chart-wrap tall"><canvas id="diAviarioChart"></canvas></div></div>
+  </div>
+
+  <div class="section-head"><div class="section-title"><span class="bar"></span>Lotes abatidos na data selecionada</div>
+    <div class="section-note" id="diTableNote"></div></div>
+  <div class="table-scroll"><table class="dtable" id="diTable"></table></div>
+</div>
+
+</div>
+
+<div class="footer-note">NUTRIZA &middot; Friato Agroindustrial &middot; dados lidos diretamente da planilha Google Sheets (aba Dados, lotes fechados) &middot; uso interno da Gerência Agropecuária</div>
+
+<script src="js/load.js"></script>
+<script src="js/config.js"></script>
+<script src="js/data_loader.js"></script>
+</body>
+</html>
